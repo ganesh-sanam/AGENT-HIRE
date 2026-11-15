@@ -147,6 +147,11 @@ Responsibilities:
           return;
         }
 
+        if (jobDescription.trim().length < 25) {
+          setError("Please provide a more complete job description (at least 1-2 sentences of required skills or responsibilities), or click 'Paste Sample AI Engineer JD' above.");
+          return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -173,7 +178,8 @@ Responsibilities:
 
           onAnalysisComplete(data);
         } catch (err) {
-          setError(err.message);
+          const isNet = err.message === "Failed to fetch" || err.name === "TypeError";
+          setError(isNet ? "Analysis request timed out or was interrupted. Please ensure the Job Description is detailed and try again." : err.message);
         } finally {
           setLoading(false);
         }
