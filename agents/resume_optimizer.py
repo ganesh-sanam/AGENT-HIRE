@@ -613,19 +613,19 @@ Rules:
                 ]
                 continue
 
-            output_dir = Path("outputs") / "json"
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            with (output_dir / "optimized_resume.json").open(
-                "w",
-                encoding="utf-8",
-            ) as file:
-                json.dump(
-                    optimized,
-                    file,
-                    ensure_ascii=False,
-                    indent=2,
-                )
+            try:
+                from services.storage_service import JSON_DIR
+                output_file = JSON_DIR / "optimized_resume.json"
+                with output_file.open("w", encoding="utf-8") as file:
+                    json.dump(
+                        optimized,
+                        file,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+            except Exception as e:
+                # Non-fatal caching error
+                pass
 
             return optimized
 

@@ -110,7 +110,14 @@ Responsibilities:
         body: formData,
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(text || `Server returned HTTP ${res.status}`);
+      }
+
       if (!res.ok) {
         throw new Error(data.detail || data.message || "Failed to analyze resume.");
       }
@@ -409,7 +416,14 @@ function ConfirmationStep({ data, onOptimizationComplete }) {
         }),
       });
 
-      const result = await res.json();
+      const text = await res.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error(text || `Server returned HTTP ${res.status}`);
+      }
+
       if (!res.ok) {
         throw new Error(result.detail?.message || result.detail || "Failed to confirm skills.");
       }

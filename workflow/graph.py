@@ -16,8 +16,7 @@ evaluator = ResumeEvaluator()
 optimizer = ResumeOptimizer()
 
 DEFAULT_THRESHOLD = 80
-BASE_DIR = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = BASE_DIR / "outputs" / "resumes"
+from services.storage_service import BASE_DIR, OUTPUT_DIR
 
 
 def normalize_pdf_text(value):

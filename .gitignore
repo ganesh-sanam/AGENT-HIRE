@@ -44,6 +44,7 @@ outputs/sessions.db
 outputs/sessions.db-journal
 outputs/sessions.db-wal
 outputs/sessions.db-shm
+outputs/data/
 outputs/test_tmp/
 outputs/json_backup
 outputs/resumes_backup

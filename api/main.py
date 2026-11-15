@@ -15,14 +15,10 @@ from pydantic import BaseModel, Field
 
 from workflow.graph import analysis_graph, optimization_graph
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-UPLOAD_DIR = BASE_DIR / "outputs" / "uploads"
-OUTPUT_DIR = BASE_DIR / "outputs" / "resumes"
-FRONTEND_DIR = BASE_DIR / "frontend"
-DB_PATH = BASE_DIR / "outputs" / "sessions.db"
+from services.storage_service import BASE_DIR, UPLOAD_DIR, OUTPUT_DIR, SESSIONS_DB_PATH
 
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+FRONTEND_DIR = BASE_DIR / "frontend"
+DB_PATH = SESSIONS_DB_PATH
 
 DEFAULT_THRESHOLD = 80
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB limit
