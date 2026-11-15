@@ -10,18 +10,26 @@ from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from workflow.graph import analysis_graph, optimization_graph
 
 from services.storage_service import BASE_DIR, UPLOAD_DIR, OUTPUT_DIR, SESSIONS_DB_PATH
 
+TEMPLATES_DIR = BASE_DIR / "templates"
 FRONTEND_DIR = BASE_DIR / "frontend"
 DB_PATH = SESSIONS_DB_PATH
 
 DEFAULT_THRESHOLD = 80
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB limit
+
+
+def get_frontend_html() -> str | None:
+    for path in [TEMPLATES_DIR / "index.html", FRONTEND_DIR / "index.html"]:
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    return None
 
 
 # =====================================================================
@@ -184,6 +192,15 @@ def public_message(message: str) -> str:
 # ROUTES
 # =====================================================================
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {str(exc)}"},
+    )
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -196,11 +213,9 @@ def health_check():
 
 @app.get("/")
 def home(request: Request):
-    # If a browser requests HTML, serve the frontend app
-    accept = request.headers.get("accept", "")
-    frontend_index = FRONTEND_DIR / "index.html"
-    if "text/html" in accept and frontend_index.is_file():
-        return HTMLResponse(content=frontend_index.read_text(encoding="utf-8"))
+    html = get_frontend_html()
+    if html:
+        return HTMLResponse(content=html)
 
     return {
         "message": "AgentHire AI API is running",
@@ -215,6 +230,12 @@ async def analyze_resume(
     resume: UploadFile = File(...),
     job_description: str = Form(...),
 ):
+    if not os.getenv("GROQ_API_KEY"):
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY is not configured on the server. Please add GROQ_API_KEY in Vercel Project Settings > Environment Variables.",
+        )
+
     if not resume.filename or Path(resume.filename).suffix.lower() != ".pdf":
         raise HTTPException(
             status_code=400,
@@ -320,6 +341,12 @@ async def analyze_resume(
 
 @app.post("/confirm-skills")
 def confirm_skills(request: ConfirmSkillsRequest):
+    if not os.getenv("GROQ_API_KEY"):
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY is not configured on the server. Please add GROQ_API_KEY in Vercel Project Settings > Environment Variables.",
+        )
+
     session_id = request.session_id
     session = sessions_store.get(session_id)
 

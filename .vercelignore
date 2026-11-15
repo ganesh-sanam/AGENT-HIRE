@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+outputs/
+tests/
+scratch/
+.env
+.git/
+.gitignore
