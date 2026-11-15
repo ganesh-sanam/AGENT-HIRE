@@ -114,6 +114,7 @@ app = FastAPI(
     title="AgentHire AI",
     description="Multi-agent resume evaluation and optimization API",
     version="1.4.0",
+    redirect_slashes=False,
 )
 
 # Enable CORS for local dev, Vite frontends, and Vercel deployments
