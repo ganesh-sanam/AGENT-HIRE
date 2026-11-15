@@ -289,3 +289,5 @@ Securely downloads the generated PDF resume with strict path traversal validatio
 
 ## License
 MIT License &copy; 2026 AgentHire AI.
+#   A G E N T - H I R E  
+ 
