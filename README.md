@@ -1,232 +1,269 @@
 # AgentHire AI ⚡
 
-**AgentHire AI** is an advanced, production-grade multi-agent resume evaluation, ATS optimization, and professional PDF generation web application.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-FF6F00.svg?style=flat&logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![Groq LPU](https://img.shields.io/badge/Groq-LPU%20Inference-F55036.svg?style=flat)](https://groq.com)
+[![ReportLab](https://img.shields.io/badge/ReportLab-Vector%20PDF-306998.svg?style=flat&logo=python&logoColor=white)](https://www.reportlab.com)
+[![React](https://img.shields.io/badge/React-18.x-61DAFB.svg?style=flat&logo=react&logoColor=black)](https://react.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Built with **FastAPI**, **LangGraph**, **Groq LPUs**, **PyMuPDF**, **ReportLab**, and a modern **React 18** web application, AgentHire AI evaluates resumes against real job postings, enforces a strict anti-hallucination policy, allows candidates to confirm genuine competencies, and outputs beautifully formatted, ATS-compliant resumes ready for submission.
+**AgentHire AI** is a production-grade, multi-agent resume evaluation, ATS optimization, and professional PDF generation web application. 
+
+Powered by **FastAPI**, **LangGraph**, **Groq LPUs (`llama-3.3-70b-versatile`)**, **PyMuPDF**, **ReportLab**, and a zero-build **React 18** Single Page Application, AgentHire AI evaluates candidate resumes against real job postings, enforces strict anti-hallucination guardrails, allows candidates to confirm genuine competencies through human-in-the-loop verification, and compiles publication-quality, ATS-compliant PDF resumes ready for immediate submission.
 
 ---
 
-## Architecture Overview
+## 🌟 Key Highlights
 
+- **Anti-Hallucination Core**: Candidate employment history, company names, educational credentials, and dates are strictly immutable. Identified skill gaps are never fabricated into the resume unless explicitly verified by the user.
+- **Transparent ATS Scoring**: Every optimization tracks `initial_score`, `final_score`, `score_delta`, and an honest `score_explanation` detailing why the score changed.
+- **Enterprise PDF Engine**: Programmatically renders vector PDFs using ReportLab with clean typography, horizontal categorical skill grouping, and orphan-heading prevention.
+- **High-Speed Inference**: Powered by Groq LPUs with built-in automatic backoff and retry for rate-limit protection (`RetryChatGroq`).
+- **Serverless-Ready**: Automatic runtime filesystem abstraction that transparently redirects file operations to `/tmp` when running on AWS Lambda or Vercel.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Client["Frontend Layer (React 18 SPA)"]
+        UI["4-Step Wizard Interface<br/>1. Upload & Match -> 2. Evaluation -> 3. Confirmation -> 4. PDF Download"]
+    end
+
+    subgraph Server["API Gateway & Serverless Controller (FastAPI)"]
+        API["api/main.py + api/index.py"]
+        Storage["services/storage_service.py<br/>(Dynamic /tmp abstraction)"]
+        DB[(Persistent SQLite Store<br/>sessions.db)]
+    end
+
+    subgraph Engine["Multi-Agent Workflow (LangGraph)"]
+        Parser["ResumeParser Agent<br/>(PyMuPDF + JSON schema extraction)"]
+        Evaluator["ResumeEvaluator Agent<br/>(Deterministic + LLM 5-pillar ATS scoring)"]
+        Optimizer["ResumeOptimizer Agent<br/>(Keyword alignment & verified skill injection)"]
+        PDF["ReportLab PDF Service<br/>(Compiles single-column ATS PDF)"]
+    end
+
+    subgraph LLM["Inference Engine (Groq LPU)"]
+        Groq["llama-3.3-70b-versatile<br/>(RetryChatGroq with 429 backoff)"]
+    end
+
+    UI -->|1. Upload PDF + Job Description| API
+    API --> Storage
+    API --> DB
+    API --> Parser
+    Parser --> Groq
+    Parser --> Evaluator
+    Evaluator --> Groq
+    Evaluator -->|Returns ATS score & skill gaps| UI
+
+    UI -->|2. Submit Confirmed Skills| API
+    API --> Optimizer
+    Optimizer --> Groq
+    Optimizer --> PDF
+    PDF --> Storage
+    PDF -->|Returns Download URL| UI
+
+    UI -->|3. Download Optimized PDF| API
+    API --> Storage
 ```
-                                  +------------------------------+
-                                  |   User Browser (React UI)    |
-                                  +--------------+---------------+
-                                                 |
-                                         REST API / JSON
-                                                 |
-                                                 v
-                                  +------------------------------+
-                                  |     FastAPI Backend (:8000)   |
-                                  +--------------+---------------+
-                                                 |
-                      +--------------------------+--------------------------+
-                      |                                                     |
-                      v                                                     v
-          +-----------------------+                             +-----------------------+
-          |   LangGraph Pipeline  |                             |  SQLite Session Store |
-          +-----------+-----------+                             |     (sessions.db)     |
-                      |                                         +-----------------------+
-      +---------------+---------------+
-      |               |               |
-      v               v               v
-+-----------+   +-----------+   +-----------+
-| Parser    |   | Evaluator |   | Optimizer |
-| Agent     |   | Agent     |   | Agent     |
-+-----------+   +-----------+   +-----------+
-      |               |               |
-      +---------------+---------------+
-                      |
-                      v
-         +--------------------------+
-         | Groq API (openai/gpt-oss)|
-         +--------------------------+
-                      |
-                      v
-         +--------------------------+
-         | Professional PDF Engine  |
-         |  (ReportLab Vector PDF)  |
-         +--------------------------+
-```
 
 ---
 
-## Key Features
+## 📊 5-Dimension ATS Scoring Model
 
-1. **Deterministic & LLM Hybrid Evaluation**:
-   - Scores candidate resumes across 5 key ATS dimensions:
-     - **Technical Skills Match** (35 pts max)
-     - **Project & Experience Relevance** (25 pts max)
-     - **Education & Qualifications** (15 pts max, deterministic scoring)
-     - **ATS Formatting & Compatibility** (15 pts max)
-     - **Clarity & Presentation** (10 pts max)
-   - Total score: 100 points maximum.
+AgentHire AI evaluates candidate alignment against target job descriptions across 5 weighted dimensions (100 Points Total):
 
-2. **Strict Anti-Hallucination & Watchlist Guards**:
-   - Candidate experience, education, employers, degrees, metrics, and dates are strictly immutable.
-   - Identified skill gaps are presented to the candidate for explicit verification.
-   - Confirmed skills may only be added to the technical skills array; the system refuses to fabricate projects or work history.
-   - **Empty confirmation (`[]`) is 100% valid and supported**: When zero skills are confirmed, the optimizer tailors phrasing and keyword alignment of the candidate's existing background with zero unverified additions.
-
-3. **Transparent Score Audit & Explanations**:
-   - Transparently distinguishes presentation and keyword prominence improvements from verified skill additions.
-   - Every optimization returns `initial_score`, `score`, `score_delta`, and a plain-English `score_explanation`.
-
-4. **Production ReportLab PDF Engine**:
-   - Generates clean, publication-quality, single-page or two-page A4 PDFs with zero literal HTML tags (`<b>`, `</b>`) or raw JSON/Python list dumps (`['...']`).
-   - Grouped technical skills hierarchy (Languages, AI/ML & Frameworks, LLMs/Agents/RAG, Developer Tools & Databases).
-   - Clean project bullet formatting with italic technology lines.
-   - Safe KeepTogether flowables to eliminate orphaned headings.
-
-5. **Durable Session Persistence**:
-   - Thread-safe SQLite database (`outputs/sessions.db`) stores session state, evaluations, and optimization history.
-   - Sessions survive server reboots and reloads.
-   - Supabase schema included (`supabase_schema.sql`) for cloud Postgres and private S3-compatible PDF storage.
-
-6. **Full-Featured React 18 Web UI**:
-   - Responsive 4-step wizard:
-     1. **Upload & Match**: Drag-and-drop PDF resume and paste target job description.
-     2. **ATS Evaluation**: Visual score badge, category progress bars, verified strengths, and requirements list.
-     3. **Skill Confirmation**: Interactive checkboxes with "Select All", "Clear All", and explicit support for empty confirmation.
-     4. **Optimized Profile & Download**: Score impact comparison card, audit explanation, profile preview, and one-click PDF download.
+| Dimension | Max Points | Evaluation Methodology |
+| :--- | :---: | :--- |
+| **Technical Skills Match** | **35 pts** | Match rate between candidate technical background and required technologies. |
+| **Project & Experience Relevance** | **25 pts** | Alignment of domain complexity, responsibilities, and seniority. |
+| **Education & Qualifications** | **15 pts** | **Deterministic keyword evaluation** (`_score_education`) ensuring fair, bias-free grading. |
+| **ATS Formatting & Compatibility** | **15 pts** | Standard section headers, chronological layout, and parsing cleanliness. |
+| **Clarity & Presentation** | **10 pts** | Action-driven phrasing, quantified achievements, and readability. |
 
 ---
 
-## Project Structure
+## 📁 Repository Structure
 
 ```text
 AGENT_HIRE/
 ├── agents/
 │   ├── resume_parser.py          # Extracts structured JSON from raw resume text
-│   ├── resume_evaluator.py       # Hybrid deterministic/LLM ATS evaluation
-│   └── resume_optimizer.py       # Conservative rewriting with anti-hallucination watchlist
+│   ├── resume_evaluator.py       # Deterministic & LLM 5-pillar ATS evaluation
+│   └── resume_optimizer.py       # Conservative optimization with anti-fabrication watchlist
 │
 ├── workflow/
-│   ├── graph.py                  # LangGraph StateGraph (analysis & optimization workflows)
+│   ├── graph.py                  # LangGraph StateGraph (analysis & optimization pipelines)
 │   └── state.py                  # AgentHireState TypedDict definition
 │
 ├── services/
-│   ├── llm_service.py            # Groq ChatGroq client provider
+│   ├── llm_service.py            # Groq provider with RetryChatGroq automatic 429 backoff
 │   ├── pdf_service.py            # PyMuPDF (fitz) text extraction engine
-│   ├── resume_output_service.py  # Production ReportLab PDF generator
-│   └── vectore_store.py          # ChromaDB semantic embeddings store
+│   ├── resume_output_service.py  # Production ReportLab PDF compiler
+│   └── storage_service.py        # Environment-aware filesystem abstraction (/tmp on serverless)
 │
 ├── api/
-│   └── main.py                   # FastAPI REST API, SQLite session manager & routes
+│   ├── main.py                   # FastAPI REST API, SQLite session manager & endpoints
+│   └── index.py                  # Vercel serverless function entrypoint
 │
-├── frontend/
-│   ├── index.html                # Zero-build standalone React 18 single-page application
-│   ├── package.json              # Vite / React package specification
-│   ├── vite.config.js            # Vite configuration with API proxy
-│   └── app.py                    # Python launcher script
-│
-├── outputs/
-│   ├── uploads/                  # Temporary upload directory
-│   ├── resumes/                  # Generated PDF resumes
-│   ├── json/                     # Optimized resume JSON snapshots
-│   └── sessions.db               # SQLite persistent session database
+├── templates/
+│   └── index.html                # Standalone React 18 single-page application
 │
 ├── tests/
-│   └── test_pipeline.py          # Test suite covering PDF engine, API, and sessions
+│   └── test_pipeline.py          # Complete 7-stage unit and integration test suite
 │
-├── supabase_schema.sql           # Production Supabase PostgreSQL & Storage configuration
-├── vercel.json                   # Vercel deployment routing configuration
-├── requirements.txt              # Pinned Python package dependencies
+├── outputs/                      # Local outputs directory (auto-redirected to /tmp on Vercel)
+│   ├── uploads/                  # Temporary uploaded PDFs
+│   ├── resumes/                  # Generated optimized PDFs
+│   ├── json/                     # Serialized candidate JSON records
+│   └── data/sessions.db          # Thread-safe persistent SQLite session store
+│
+├── supabase_schema.sql           # Optional production Supabase PostgreSQL & S3 schema
+├── vercel.json                   # Canonical Vercel deployment routing configuration
+├── requirements.txt              # Production Python package dependencies
+├── .vercelignore                 # Excludes local caches, virtual environments, and scratch files
 ├── .env                          # Local environment variables (excluded from git)
-├── .gitignore                    # Git ignore file for secrets and generated outputs
 └── README.md                     # Documentation
 ```
 
 ---
 
-## Local Development & Setup
+## 🚀 Quickstart & Local Setup
 
 ### 1. Prerequisites
-- Python 3.10+ (Python 3.13 tested and verified)
-- Valid Groq API key from [console.groq.com](https://console.groq.com)
+- **Python 3.10+** (Tested on Python 3.11, 3.12, 3.13)
+- A free **Groq API Key** from [console.groq.com](https://console.groq.com)
 
-### 2. Environment Configuration
-Create or verify `.env` in the project root:
-```ini
-GROQ_API_KEY=gsk_your_groq_api_key_here
-GROQ_MODEL=openai/gpt-oss-120b
-```
-
-### 3. Virtual Environment & Dependencies
+### 2. Clone & Setup Virtual Environment
 ```powershell
-# Activate the virtual environment
-.\.venv\Scripts\Activate.ps1
+# Clone the repository
+git clone https://github.com/ganesh-sanam/AGENT-HIRE.git
+cd AGENT-HIRE
 
-# Install or verify requirements
+# Create an isolated virtual environment
+python -m venv .venv
+
+# Activate the virtual environment
+# On Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# On macOS / Linux:
+source .venv/bin/activate
+
+# Upgrade pip and install pinned dependencies
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip check
 ```
 
-### 4. Running the Web Application
+### 3. Configure Environment Variables
+Create a `.env` file in the project root:
+```ini
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+### 4. Run the Application
 Start the FastAPI server:
 ```powershell
 python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 - **Web Application UI**: Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
-- **Interactive Swagger Docs**: Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
-- **Health Check**: Open [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
+- **Interactive OpenAPI Docs**: Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+- **Health Check Endpoint**: Open [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
 
 ---
 
-## Running the Automated Test Suite
+## 🧪 Automated Test Suite
 
-Run the test suite:
+The project includes an end-to-end automated test suite covering ReportLab XML sanitization, skill categorization, sentence bullet parsing, SQLite session persistence, API endpoints, and path-traversal download security.
+
+Run the test suite directly:
 ```powershell
-.\.venv\Scripts\python.exe -u -c "
-from tests.test_pipeline import *
-from pathlib import Path
-tmp = Path('outputs/test_tmp')
-tmp.mkdir(parents=True, exist_ok=True)
-test_pdf_generation_formatting(tmp)
-test_skills_categorization()
-test_split_into_bullets()
-test_sqlite_session_store(tmp)
-test_api_health()
-test_api_home_html()
-test_api_download_security()
-print('ALL 7 TESTS PASSED!')
-"
+# Ensure PYTHONPATH is set to the project root
+$env:PYTHONPATH="."
+.\.venv\Scripts\python -u tests\test_pipeline.py
+```
+
+Expected output:
+```text
+--- Running test_pdf_generation_formatting ---
+PASSED
+--- Running test_skills_categorization ---
+PASSED
+--- Running test_split_into_bullets ---
+PASSED
+--- Running test_sqlite_session_store ---
+PASSED
+--- Running test_api_health ---
+PASSED
+--- Running test_api_home_html ---
+PASSED
+--- Running test_api_download_security ---
+PASSED
+
+==========================================
+ALL 7 PIPELINE & API TESTS PASSED SUCCESSFULLY!
+==========================================
 ```
 
 ---
 
-## Production Deployment Guide
+## 🌐 Production Deployment (Vercel)
 
-### Deployment Architecture
-- **Frontend**: Deploy `frontend/` to **Vercel** (Global Edge CDN, instant loading, SSL).
-- **Backend**: Deploy FastAPI backend to **Railway**, **Render**, or **Fly.io** (Persistent process, no 10-second serverless timeout, native PyMuPDF & ReportLab support).
-- **Database & Storage (Optional for scale)**: **Supabase** (Postgres for session state, Supabase Storage for private PDF resumes).
+The repository is configured for one-click deployment to Vercel using the canonical `@vercel/python` builder.
 
-### Environment Variables for Deployment
-Configure these in your hosting dashboard (never commit them to Git):
+### 1. Vercel Configuration (`vercel.json`)
+```json
+{
+  "version": 2,
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ]
+}
+```
 
-| Variable | Description | Example / Default |
-|---|---|---|
-| `GROQ_API_KEY` | Groq API Key (Required) | `gsk_...` |
-| `GROQ_MODEL` | Groq Model Name | `openai/gpt-oss-120b` |
-| `CORS_ORIGINS` | Allowed Frontend Origins | `https://your-agenthire-frontend.vercel.app` |
-| `VITE_API_BASE_URL` | Frontend API URL (if separate) | `https://your-backend.railway.app` |
-
-### Vercel Deployment (Frontend)
-1. Push this repository to GitHub (ensure `.env` is ignored).
-2. Connect your repository to Vercel.
-3. Set the Root Directory to `frontend`.
-4. Add environment variable `VITE_API_BASE_URL` pointing to your deployed FastAPI backend URL.
-5. Deploy.
+### 2. Deployment Steps
+1. Push your repository to GitHub:
+   ```powershell
+   git push origin main
+   ```
+2. Import the repository into your [Vercel Dashboard](https://vercel.com/dashboard).
+3. Under **Settings $\rightarrow$ General**:
+   - **Root Directory**: Leave blank or set to `./`.
+   - **Framework Preset**: Set to **Other**.
+4. Under **Settings $\rightarrow$ Environment Variables**, add:
+   - `GROQ_API_KEY`: `gsk_...`
+   - `GROQ_MODEL`: `llama-3.3-70b-versatile`
+5. Click **Deploy**.
 
 ---
 
-## API Reference
+## 📡 REST API Reference
 
-### 1. `GET /health`
-Returns system status and API health.
+### 1. Health Check
+```http
+GET /health
+```
+**Response (200 OK):**
 ```json
 {
   "status": "healthy",
@@ -236,13 +273,20 @@ Returns system status and API health.
 }
 ```
 
-### 2. `POST /analyze-resume`
-Uploads a resume PDF and target job description for ATS analysis.
-- **Request**: Multipart Form Data (`resume: File`, `job_description: string`).
-- **Response**:
+### 2. Analyze Resume
+```http
+POST /analyze-resume
+Content-Type: multipart/form-data
+```
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `resume` | File (PDF) | Candidate resume in PDF format (max 10 MB) |
+| `job_description` | String | Target job description text |
+
+**Response (200 OK):**
 ```json
 {
-  "session_id": "56dac4070ec24e4881d018fbd5c1b359",
+  "session_id": "604d652f0bd344e4b2e5977a4b65aaca",
   "status": "pending_confirmation",
   "score": 77,
   "initial_score": 77,
@@ -250,44 +294,61 @@ Uploads a resume PDF and target job description for ATS analysis.
   "approved": false,
   "original_evaluation": {
     "category_scores": { ... },
-    "strengths": [ ... ],
-    "weaknesses": [ ... ]
+    "strengths": [ "Proven LangGraph experience", "Strong FastAPI background" ],
+    "weaknesses": [ "Missing ChromaDB vector search", "No Docker deployment mentioned" ]
   },
-  "unconfirmed_skills": ["tool calling", "Azure OpenAI", "Kubernetes"],
+  "unconfirmed_skills": [ "ChromaDB", "Docker" ],
   "pending_confirmation": true,
   "message": "Review the skill gaps and confirm only skills you genuinely possess."
 }
 ```
 
-### 3. `POST /confirm-skills`
-Confirms genuine skills (empty list `[]` allowed) and triggers optimization and PDF generation.
-- **Request Body**:
+### 3. Confirm Skills & Optimize
+```http
+POST /confirm-skills
+Content-Type: application/json
+```
 ```json
 {
-  "session_id": "56dac4070ec24e4881d018fbd5c1b359",
-  "confirmed_skills": []
+  "session_id": "604d652f0bd344e4b2e5977a4b65aaca",
+  "confirmed_skills": [ "ChromaDB" ]
 }
 ```
-- **Response**:
+> **Note:** Passing an empty list `[]` is 100% supported when a candidate possesses none of the missing skills. The optimizer refines phrasing and keyword visibility without fabricating experience.
+
+**Response (200 OK):**
 ```json
 {
-  "session_id": "56dac4070ec24e4881d018fbd5c1b359",
+  "session_id": "604d652f0bd344e4b2e5977a4b65aaca",
   "status": "completed",
   "score": 83,
   "initial_score": 77,
   "score_delta": 6,
-  "score_explanation": "Score increased by 6 points (77 -> 83). No unconfirmed skills were added. Improvement is driven by clearer ATS phrasing, prominent keyword organization, and refined presentation of your existing verified experience.",
+  "score_explanation": "Score increased by 6 points (77 -> 83). 1 confirmed skill ('ChromaDB') was integrated into technical skills. Improvement driven by refined ATS phrasing and verified competence alignment.",
   "approved": true,
-  "pdf_download_url": "/download-resume/optimized_resume_56dac4070ec24e4881d018fbd5c1b359.pdf"
+  "pdf_download_url": "/download-resume/optimized_resume_604d652f0bd344e4b2e5977a4b65aaca.pdf"
 }
 ```
 
-### 4. `GET /download-resume/{filename}`
-Securely downloads the generated PDF resume with strict path traversal validation.
+### 4. Download Optimized PDF
+```http
+GET /download-resume/{filename}
+```
+Streams the generated ATS-compliant PDF file with strict path-traversal validation.
 
 ---
 
-## License
-MIT License &copy; 2026 AgentHire AI.
-#   A G E N T - H I R E  
- 
+## 🛡️ Security & Privacy Guardrails
+
+- **Zero Data Retention**: Uploaded PDF files are deleted immediately after text extraction inside an unconditional `finally` block.
+- **Path-Traversal Protection**: Download endpoints enforce strict regex filtering (`^optimized_resume_[a-zA-Z0-9_-]+\.pdf$`) to prevent directory traversal.
+- **Anti-Prompt-Injection**: Confirmed skills submitted to `/confirm-skills` are strictly validated against the server-side session whitelist before invocation.
+- **Enterprise Groq Terms**: Processed via Groq API under terms that do not train on user payloads.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+© 2026 AgentHire AI. Built with FastAPI, LangGraph, ReportLab, and Groq LPUs.
