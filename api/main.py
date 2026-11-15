@@ -216,7 +216,14 @@ def health_check():
 def home(request: Request):
     html = get_frontend_html()
     if html:
-        return HTMLResponse(content=html)
+        return HTMLResponse(
+            content=html,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     return {
         "message": "AgentHire AI API is running",
