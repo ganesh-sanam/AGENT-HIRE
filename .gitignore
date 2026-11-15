@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Application State & Local Files
+outputs/uploads/*
+!outputs/uploads/.gitkeep
+outputs/resumes/*
+!outputs/resumes/.gitkeep
+outputs/json/*
+!outputs/json/.gitkeep
+outputs/sessions.db
+outputs/sessions.db-journal
+outputs/sessions.db-wal
+outputs/sessions.db-shm
+outputs/test_tmp/
+outputs/json_backup
+outputs/resumes_backup
+chroma_db/
+
+# Frontend / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
