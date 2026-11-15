@@ -172,11 +172,9 @@ class ResumeEvaluator:
         ):
             raise ValueError("Job description cannot be empty.")
 
-        resume_json = json.dumps(
-            resume_data,
-            indent=2,
-            ensure_ascii=False,
-        )
+        # Strip unparsed original text and indentation to save 2000+ tokens and prevent TPM rate limits
+        clean_resume = {k: v for k, v in resume_data.items() if k != "original_text"}
+        resume_json = json.dumps(clean_resume, separators=(',', ':'), ensure_ascii=False)
 
         prompt = f"""
 You are an expert resume evaluator and ATS analyst.

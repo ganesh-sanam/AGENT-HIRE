@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -48,6 +49,8 @@ def normalize_pdf_text(value):
 def analyze_parse(state: AgentHireState) -> dict:
     text = extract_text_from_pdf(state["pdf_path"])
     resume_data = parser.parse_resume(text)
+    # Pause briefly between parser and evaluator to let Groq TPM rate limits drain
+    time.sleep(1.5)
 
     return {
         "extracted_text": text,
